@@ -253,7 +253,8 @@ async def get_sessions(token: str = Depends(oauth2_scheme)):
         username = payload.get("sub")
         print(f"Payload: {payload}, Token: {token}")
 
-        sessions = await db.sessions.find({"username": username}).to_list(length=100)
+        sessions_cursor = db.sessions.find({"username": username})
+        sessions = await sessions_cursor.to_list(length=100)
         print(f"Sessions retrieved: {sessions}")
 
         if not sessions:

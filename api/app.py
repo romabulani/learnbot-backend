@@ -38,7 +38,6 @@ except FileNotFoundError:
 
 with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
     temp_file.write(json.dumps(creds_data).encode())
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file.name
 
 genai.configure(api_key=None)
 

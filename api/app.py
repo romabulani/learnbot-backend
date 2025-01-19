@@ -11,11 +11,12 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from jose import JWTError, jwt
 from dotenv import load_dotenv
 import json
-import tempfile
 import uuid
 from fastapi.logger import logger 
 from bson import ObjectId
 import gdown
+import base64
+from tempfile import NamedTemporaryFile
 
 
 load_dotenv()
@@ -24,20 +25,17 @@ load_dotenv()
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
-google_drive_url= os.getenv("CREDS")
-try:
-    output_path = "learnbot.json"
-    gdown.download(google_drive_url, output_path, quiet=False)
-    with open(output_path, 'r') as json_file:
-        creds_data = json.load(json_file)
-except json.JSONDecodeError as e:
-    raise ValueError(f"Invalid JSON in the downloaded credentials file: {e}")
-except FileNotFoundError:
-    raise ValueError(f"Credentials file not found locally: {output_path}")
 
+creds_base64 = os.getenv("ENCODED_CREDS")
+if creds_base64:
+    creds_data = json.loads(base64.b64decode(creds_base64).decode('utf-8'))
 
-with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
-    temp_file.write(json.dumps(creds_data).encode())
+    with NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
+        temp_file.write(json.dumps(creds_data).encode())
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file.name
+    print(f"Credentials successfully loaded from: {temp_file.name}")
+else:
+    raise ValueError("Google credentials are not set in environment variables.")
 
 genai.configure(api_key=None)
 

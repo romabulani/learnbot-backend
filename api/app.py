@@ -15,6 +15,8 @@ import tempfile
 import uuid
 from fastapi.logger import logger 
 from bson import ObjectId
+import gdown
+
 
 load_dotenv()
 
@@ -22,17 +24,21 @@ load_dotenv()
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
-creds = os.getenv("GOOGLE_CREDS")
+google_drive_url= os.getenv("CREDS")
 try:
-    creds_data = json.loads(creds)
+    output_path = "learnbot.json"
+    gdown.download(google_drive_url, output_path, quiet=False)
+    with open(output_path, 'r') as json_file:
+        creds_data = json.load(json_file)
 except json.JSONDecodeError as e:
-    raise ValueError(f"Invalid JSON in 'GOOGLE_CREDS': {e}")
+    raise ValueError(f"Invalid JSON in the downloaded credentials file: {e}")
+except FileNotFoundError:
+    raise ValueError(f"Credentials file not found locally: {output_path}")
 
-if creds:
-    creds_data = json.loads(creds)
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
-        temp_file.write(json.dumps(creds_data).encode())
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file.name
+
+with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
+    temp_file.write(json.dumps(creds_data).encode())
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file.name
 
 genai.configure(api_key=None)
 

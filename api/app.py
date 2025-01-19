@@ -88,7 +88,7 @@ def objectid_to_str(obj):
     return obj
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
         username = payload.get("sub")
@@ -156,12 +156,11 @@ async def get_or_create_session(username: str):
 @app.websocket("/chat")
 async def websocket_endpoint(websocket: WebSocket):
     try:
-        # Parse token and session ID from query params
-        query_params = websocket.scope.get("query_string", b"").decode("utf-8")
-        token = dict(q.split("=") for q in query_params.split("&")).get("token")
-        session_id = dict(q.split("=") for q in query_params.split("&")).get("sessionId")
+        token = websocket.query_params.get("token")
+        session_id = websocket.query_params.get("sessionId")
 
         if not token:
+            await websocket.close(code=1008, reason="Token missing")
             raise HTTPException(status_code=401, detail="Token missing")
 
         # Verify token and get username
@@ -201,29 +200,20 @@ async def websocket_endpoint(websocket: WebSocket):
             # Check if the message is related to JavaScript
             if not is_javascript_related(user_message):
                 fallback_message = "Please ask questions related to JavaScript."
-                
-                # Save the fallback assistant response
                 await db.messages.insert_one({
                     "sender": "assistant",
                     "message": fallback_message,
                     "session_id": session_id,
                     "timestamp": datetime.utcnow()
                 })
-
-                # Send the fallback response to the client
                 await websocket.send_json({"message_chunk": fallback_message})
                 await websocket.send_json({"message_complete": True})
                 continue
 
-            # Retrieve conversation history for the session
-            context = await db.messages.find({"session_id": session_id}).to_list(length=10)  # Limit to last 10 messages
-            conversation_history = [
-                {"role": "user" if msg["sender"] == "user" else "assistant", "content": msg["message"]}
-                for msg in context
-            ]
 
-            # Generate a response from the AI model with conversation history
-            full_context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history])
+            conversation_history = await db.messages.find({"session_id": session_id}).to_list(length=10)
+            context = [{"role": "user" if msg["sender"] == "user" else "assistant", "content": msg["message"]} for msg in conversation_history]
+            full_context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in context])
             prompt = f"Based on the following conversation, respond to the user's last message:\n{full_context}\nUser: {user_message}\nAssistant:"
 
             respArr = []
@@ -232,7 +222,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 respArr.append(chunk.text)
                 await websocket.send_json({"message_chunk": chunk.text})
 
-            # End of response, signal completion
             await websocket.send_json({"message_complete": True})
 
             full_response = "".join(respArr)
@@ -249,6 +238,11 @@ async def websocket_endpoint(websocket: WebSocket):
         print("WebSocket disconnected")
     except HTTPException as e:
         await websocket.close(code=1008, reason=str(e))
+        raise e
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        await websocket.close(code=1008, reason="Internal error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 

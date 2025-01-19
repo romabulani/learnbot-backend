@@ -124,7 +124,7 @@ async def signup(form_data: OAuth2PasswordRequestForm = Depends()):
 @app.post("/login", response_model=LoginResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await db.users.find_one({"username": form_data.username})
-    if not user or not bcrypt.checkpw(form_data.password.encode("utf-8"), user["password"].encode("utf-8")):
+    if not user or not bcrypt.checkpw(form_data.password.encode("utf-8"), user["password"]):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     access_token = create_access_token(data={"sub": user["username"]}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))

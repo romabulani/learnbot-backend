@@ -102,7 +102,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
@@ -124,7 +124,7 @@ async def signup(form_data: OAuth2PasswordRequestForm = Depends()):
 @app.post("/login", response_model=LoginResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await db.users.find_one({"username": form_data.username})
-    if not user or not bcrypt.checkpw(form_data.password.encode("utf-8"), user["password"]):
+    if not user or not bcrypt.checkpw(form_data.password.encode("utf-8"), user["password"].encode("utf-8")):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     access_token = create_access_token(data={"sub": user["username"]}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))

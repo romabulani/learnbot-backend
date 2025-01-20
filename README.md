@@ -1,4 +1,4 @@
-# LearnBoat Backend
+# JavaScript AI Teacher - Backend
 
 ## Overview
 

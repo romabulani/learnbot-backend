@@ -47,7 +47,7 @@ This backend uses MongoDB to store the following:
 
 - Clone the repository
     ```
-    git clone <repository-url>
+    git clone https://github.com/romabulani/learnbot-backend
     cd learnbot-backend
     ```
 - Create a virtual environment:
